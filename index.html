@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="9×9共円ゲーム。証明済み必勝戦略を使うCPU（先手）と対戦できます。" />
+    <title>共円ゲーム 9×9 — 証明済み必勝CPUと対戦</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header class="top">
+        <div>
+          <h1>共円ゲーム 9×9</h1>
+          <p class="subtitle">証明済み必勝戦略CPU（先手） vs あなた（後手）</p>
+        </div>
+        <div class="toggles" role="group" aria-label="表示切替">
+          <button id="hintToggle" type="button" aria-pressed="false">Hint OFF</button>
+          <button id="resultToggle" type="button" aria-pressed="true">Result ON</button>
+          <button id="soundToggle" type="button" aria-pressed="false">音 OFF</button>
+        </div>
+      </header>
+
+      <section class="statusbar" aria-live="polite">
+        <div id="turnLabel" class="turn">CPUが中央に打ちました。あなたの番です。</div>
+        <div id="fetchLabel" class="fetch" hidden></div>
+      </section>
+
+      <section class="board-wrap">
+        <div id="board" class="board" role="grid" aria-label="9×9 共円ゲーム盤面"></div>
+      </section>
+
+      <section class="legend" aria-label="石の凡例">
+        <span class="chip"><i class="stone cpu"></i>CPU（先手・黒）</span>
+        <span class="chip"><i class="stone you"></i>YOU（後手・赤）</span>
+        <span class="chip"><i class="swatch hint-sw"></i>置ける点（Hint）</span>
+      </section>
+
+      <section class="controls" aria-label="操作">
+        <button id="undoBtn" type="button">Undo</button>
+        <button id="redoBtn" type="button">Redo</button>
+        <button id="resetBtn" type="button">Reset</button>
+        <button id="retryBtn" type="button" hidden>Retry</button>
+      </section>
+
+      <section id="resultPanel" class="result" aria-live="polite">
+        <div id="resultMain">手数 1 ／ あなたの番です</div>
+        <div class="prov">CPUは証明済み必勝戦略を参照しています（その場で完全探索はしません）。</div>
+        <details id="detailBox">
+          <summary>詳細</summary>
+          <dl>
+            <div><dt>canonical</dt><dd id="dCanon">-</dd></div>
+            <div><dt>shard</dt><dd id="dShard">-</dd></div>
+            <div><dt>strategy</dt><dd id="dStrategy">strategy-v1</dd></div>
+            <div><dt>fetch</dt><dd id="dFetch">0 shards / 0 B</dd></div>
+          </dl>
+        </details>
+      </section>
+
+      <section class="explain">
+        <h2>このCPUについて</h2>
+        <p>
+          このCPUはその場で手を予想しているわけではありません。9×9共円ゲームの完全解析から生成された証明済み必勝戦略（canonical
+          state → witness）を参照しています。CPUが先手のため、合法な手をどう選んでもCPU側には勝ち筋があります。
+        </p>
+        <p class="note">既存の対CPU練習ゲームとは独立した実装で、本作では完全解析から生成した証明済み戦略を使用します。</p>
+      </section>
+
+      <div id="endOverlay" class="overlay" hidden>
+        <div class="card" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+          <h2 id="endTitle">終局</h2>
+          <p id="endText"></p>
+          <button id="againBtn" type="button">もう一度</button>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

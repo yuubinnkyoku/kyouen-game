@@ -1,0 +1,247 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f5ee;
+  --ink: #22303c;
+  --muted: #66788a;
+  --cpu: #14213d;
+  --you: #d64545;
+  --hint: #ffe08a;
+  --card: #ffffff;
+  --line: #e3ddcf;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 16px 16px 48px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+button {
+  font: inherit;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.statusbar {
+  margin: 12px 0;
+}
+
+.turn {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.fetch {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.board-wrap {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  aspect-ratio: 1;
+}
+
+.cell {
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fbf9f3;
+  padding: 0;
+  min-height: 0;
+}
+
+.cell.hint-ok {
+  background: var(--hint);
+}
+
+.cell.cpu::after,
+.cell.you::after {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+}
+
+.cell.cpu::after {
+  background: var(--cpu);
+}
+
+.cell.you::after {
+  background: var(--you);
+}
+
+.cell.last::before {
+  content: "";
+  position: absolute;
+  inset: 6%;
+  border: 2px solid #2a9d8f;
+  border-radius: 10px;
+  z-index: 1;
+}
+
+.cell.blame::after {
+  outline: 3px solid #e76f51;
+  outline-offset: -3px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stone {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.stone.cpu { background: var(--cpu); }
+.stone.you { background: var(--you); }
+
+.hint-sw {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--hint);
+  border: 1px solid var(--line);
+  display: inline-block;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.result {
+  margin-top: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.result .prov {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.result dl {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.result dl div {
+  display: flex;
+  gap: 8px;
+}
+
+.result dt {
+  min-width: 88px;
+}
+
+.explain {
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.explain h2 {
+  font-size: 16px;
+}
+
+.explain .note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 40, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+}
+
+@media (max-width: 420px) {
+  #app { padding: 12px 12px 40px; }
+  .controls { grid-template-columns: repeat(2, 1fr); }
+}

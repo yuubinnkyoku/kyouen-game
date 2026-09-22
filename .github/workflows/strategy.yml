@@ -1,0 +1,31 @@
+name: Strategy export
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Strategy release tag"
+        default: "strategy-v1"
+        required: true
+permissions:
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install zstandard
+      - run: node tools/export-strategy.mjs
+        env:
+          KYOuen_TAG: ${{ inputs.tag }}
+      - run: python tools/verify-strategy.py .strategy-work/kyouen-9x9.cert.zst .strategy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: strategy-${{ inputs.tag }}
+          path: .strategy
+          retention-days: 7
