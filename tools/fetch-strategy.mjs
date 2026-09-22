@@ -16,7 +16,7 @@ for (let attempt = 1; attempt <= maxAttempts && !ok; attempt++) {
       ["release", "download", TAG, "-R", REPO, "--clobber", "--dir", ".strategy", "--pattern", "*.tar.gz"],
       { stdio: "inherit", env },
     );
-    execFileSync("tar", ["-xzf", ".strategy/.strategy-bundle.tar.gz", "-C", ".strategy", "--strip-components=1"], {
+    execFileSync("tar", ["-xzf", ".strategy/strategy-bundle.tar.gz", "-C", ".strategy", "--strip-components=1"], {
       stdio: "inherit",
     });
     ok = true;

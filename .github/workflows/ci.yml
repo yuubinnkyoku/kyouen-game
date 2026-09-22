@@ -20,7 +20,7 @@ jobs:
         run: |
           mkdir -p .strategy
           gh release download strategy-v1 -R yuubinnkyoku/kyouen-game --clobber --dir .strategy --pattern '*.tar.gz'
-          tar -xzf .strategy/.strategy-bundle.tar.gz -C .strategy --strip-components=1
+          tar -xzf .strategy/strategy-bundle.tar.gz -C .strategy --strip-components=1
           test -f .strategy/manifest.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
