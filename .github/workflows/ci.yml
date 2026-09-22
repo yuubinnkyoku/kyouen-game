@@ -16,9 +16,14 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit
-      - name: Fetch strategy shards (pinned strategy-v1 release)
-        run: node tools/fetch-strategy.mjs
+      - name: Fetch strategy bundle (pinned strategy-v1 release, single asset)
+        run: |
+          mkdir -p .strategy
+          gh release download strategy-v1 -R yuubinnkyoku/kyouen-game --clobber --dir .strategy --pattern '*.tar.gz'
+          tar -xzf .strategy/.strategy-bundle.tar.gz -C .strategy --strip-components=1
+          test -f .strategy/manifest.json
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KYOuen_TAG: strategy-v1
       - run: npm run test:integration
       - run: npm run build

@@ -20,6 +20,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Fetch strategy bundle (single asset, then extract)
+        run: |
+          mkdir -p .strategy
+          gh release download strategy-v1 -R yuubinnkyoku/kyouen-game --clobber --dir .strategy --pattern '*.tar.gz'
+          tar -xzf .strategy/.strategy-bundle.tar.gz -C .strategy --strip-components=1
+          ls .strategy | head -5
+          test -f .strategy/manifest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build
         env:
           KYOuen_TAG: strategy-v1
