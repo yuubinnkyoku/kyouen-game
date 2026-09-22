@@ -28,8 +28,11 @@
 ## Strategy release
 
 - tag: `strategy-v1` on `yuubinnkyoku/kyouen-game`
+  (<https://github.com/yuubinnkyoku/kyouen-game/releases/tag/strategy-v1>)
 - assets: `manifest.json` + `00.bin`…`ff.bin` (257 assets)
-- total records: 8,826,458; shard count: 256
+  plus `strategy-bundle.tar.gz` (single-file bundle for CI/Pages fetching)
+- total records: 8,826,458; total bytes: 97,095,134 (92.6 MiB);
+  shard bytes: min 374,082 / avg 379,277 / max 385,445
 - generation command: `node tools/export-strategy.mjs` (env `KYOuen_WORK`, `KYOuen_OUT`, `KYOuen_TAG`)
 - verification command: `python tools/verify-strategy.py .strategy-work/kyouen-9x9.cert.zst .strategy`
 - verification: WIN count 8,826,458, 0 duplicate states, all shard ids correct,
@@ -39,7 +42,13 @@
 ## Distribution decision
 
 - Strategy shards are NOT committed to git history.
+- Production Pages tested with real-browser E2E (desktop + mobile viewports):
+  load → CPU center → Hint → human move → shard fetch → CPU witness reply →
+  Undo → Redo → Reset all green; a full random game ends with CPU win, no
+  strategy miss/illegal witness/fetch failure.
 - Pages deployment vendors the pinned `strategy-v1` Release assets into `dist/strategy/`
-  (same-origin serving). Reason: GitHub Release direct fetch from the Pages origin was
-  not relied upon without a verified browser check; same-origin is deterministic and
-  cache-friendly.
+  (same-origin serving). A same-origin decision was needed because the research
+  certificate repo is private, so an unauthenticated browser fetch of a Release
+  asset cannot be relied upon; same-origin is deterministic and cache-friendly.
+  A single-file `strategy-bundle.tar.gz` asset exists so CI/Pages fetch with one
+  API call (avoids per-asset 429 rate limiting).
