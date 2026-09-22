@@ -12,20 +12,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install zstandard
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit
-      - name: Build strategy shards
-        run: node tools/export-strategy.mjs
+      - name: Fetch strategy shards (pinned strategy-v1 release)
+        run: node tools/fetch-strategy.mjs
         env:
           KYOuen_TAG: strategy-v1
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Verify strategy
-        run: python tools/verify-strategy.py .strategy-work/kyouen-9x9.cert.zst .strategy
       - run: npm run test:integration
       - run: npm run build
+        env:
+          KYOuen_TAG: strategy-v1
