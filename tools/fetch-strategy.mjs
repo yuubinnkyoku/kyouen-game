@@ -1,23 +1,44 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const TAG = process.env.KYOuen_TAG || "strategy-v1";
 const REPO = "yuubinnkyoku/kyouen-game";
 mkdirSync(".strategy", { recursive: true });
-console.log(`fetching strategy ${TAG} into .strategy/ via gh release download`);
-const maxAttempts = 5;
-for (let attempt = 1; ; attempt++) {
+// Single-asset bundle first (1 API call), fall back to per-file download.
+console.log(`fetching strategy ${TAG} into .strategy/`);
+const env = { ...process.env, GH_TOKEN: process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "" };
+const maxAttempts = 6;
+let ok = false;
+for (let attempt = 1; attempt <= maxAttempts && !ok; attempt++) {
   try {
-    execFileSync("gh", ["release", "download", TAG, "-R", REPO, "--clobber", "--dir", ".strategy"], {
+    execFileSync(
+      "gh",
+      ["release", "download", TAG, "-R", REPO, "--clobber", "--dir", ".strategy", "--pattern", "*.tar.gz"],
+      { stdio: "inherit", env },
+    );
+    execFileSync("tar", ["-xzf", ".strategy/.strategy-bundle.tar.gz", "-C", ".strategy", "--strip-components=1"], {
       stdio: "inherit",
-      env: { ...process.env, GH_TOKEN: process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "" },
     });
-    break;
+    ok = true;
   } catch (e) {
-    if (attempt >= maxAttempts) throw e;
-    const waitMs = attempt * 30000;
-    console.log(`attempt ${attempt} failed, retrying in ${waitMs / 1000}s...`);
-    execFileSync(process.platform === "win32" ? "powershell" : "sleep", process.platform === "win32" ? ["-Command", `Start-Sleep ${waitMs / 1000}`] : [String(waitMs / 1000)], { stdio: "inherit" });
+    console.log(`bundle attempt ${attempt} failed (${e}), retrying...`);
+    await new Promise((r) => setTimeout(r, attempt * 30000));
+  }
+}
+if (!ok) {
+  console.log("bundle download failed, falling back to per-file download");
+  for (let attempt = 1; ; attempt++) {
+    try {
+      execFileSync("gh", ["release", "download", TAG, "-R", REPO, "--clobber", "--dir", ".strategy"], {
+        stdio: "inherit",
+        env,
+      });
+      break;
+    } catch (e) {
+      if (attempt >= maxAttempts) throw e;
+      console.log(`file attempt ${attempt} failed, retrying...`);
+      await new Promise((r) => setTimeout(r, attempt * 30000));
+    }
   }
 }
 console.log("done");
