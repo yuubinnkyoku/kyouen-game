@@ -23,6 +23,7 @@ jobs:
       - run: node tools/export-strategy.mjs
         env:
           KYOuen_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: python tools/verify-strategy.py .strategy-work/kyouen-9x9.cert.zst .strategy
       - run: gh release create "${{ inputs.tag }}" --title "${{ inputs.tag }}" --notes "Proven 9x9 strategy: 8826458 WIN records in 256 shards. See docs/provenance.md." .strategy/manifest.json .strategy/*.bin
         env:

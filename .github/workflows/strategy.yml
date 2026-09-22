@@ -23,6 +23,7 @@ jobs:
       - run: node tools/export-strategy.mjs
         env:
           KYOuen_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: python tools/verify-strategy.py .strategy-work/kyouen-9x9.cert.zst .strategy
       - uses: actions/upload-artifact@v4
         with:

@@ -1,12 +1,13 @@
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
+import { createReadStream } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 const ZIP_SHA = "84454543f7e054e42779792b10c430d539ab6dd26c60b46d091cf4770dde7707";
 const ZST_SHA = "cbaaaa287696498fa74651fb31526f65c996202854dbe8c9807085eeeb2ad952";
 const RAW_SHA = "f4282bebbf8240cd0a11fdd5af78ef8b1e33f0b9582f72424574c1bab5ac92e2";
-const ZIP_URL = "https://github.com/yuubinnkyoku/kyouen-1-to-9-classification/releases/download/v1.0.0/kyouen-certificates-1-to-9-v1.0.0.zip";
 
 function shaFile(path) {
   return new Promise((resolve, reject) => {
@@ -15,26 +16,58 @@ function shaFile(path) {
   });
 }
 
+function downloadWithGh(dest) {
+  execFileSync(
+    "gh",
+    [
+      "release",
+      "download",
+      "v1.0.0",
+      "-R",
+      "yuubinnkyoku/kyouen-1-to-9-classification",
+      "--clobber",
+      "--pattern",
+      "kyouen-certificates-1-to-9-v1.0.0.zip",
+      "--dir",
+      dest,
+    ],
+    { stdio: "inherit" },
+  );
+}
+
 async function main() {
-  const work = process.env.KYOuen_WORK ?? ".strategy-work";
-  const outDir = process.env.KYOuen_OUT ?? ".strategy";
-  const tag = process.env.KYOuen_TAG ?? "strategy-v1";
+  const work = process.env.KYOuen_WORK || ".strategy-work";
+  const outDir = process.env.KYOuen_OUT || ".strategy";
+  const tag = process.env.KYOuen_TAG || "strategy-v1";
   mkdirSync(work, { recursive: true });
   mkdirSync(outDir, { recursive: true });
 
   const zipPath = `${work}/cert.zip`;
   if (!existsSync(zipPath)) {
-    console.log(`downloading ${ZIP_URL}`);
-    const res = await fetch(ZIP_URL);
-    if (!res.ok || !res.body) throw new Error(`download failed: ${res.status}`);
-    await pipeline(Readable.fromWeb(res.body), createWriteStream(zipPath));
+    const { renameSync, readdirSync } = await import("node:fs");
+    try {
+      downloadWithGh(work);
+      for (const f of readdirSync(work)) {
+        if (f.endsWith(".zip") && f !== "cert.zip") renameSync(`${work}/${f}`, zipPath);
+      }
+    } catch (e) {
+      console.log(`gh download failed (${e}), trying plain fetch`);
+    }
+    if (!existsSync(zipPath)) {
+      // last resort: plain fetch (works when repo/releases are public)
+      const url =
+        "https://github.com/yuubinnkyoku/kyouen-1-to-9-classification/releases/download/v1.0.0/kyouen-certificates-1-to-9-v1.0.0.zip";
+      console.log(`downloading ${url}`);
+      const res = await fetch(url);
+      if (!res.ok || !res.body) throw new Error(`download failed: ${res.status}`);
+      await pipeline(Readable.fromWeb(res.body), createWriteStream(zipPath));
+    }
   }
   const zipSha = await shaFile(zipPath);
   console.log(`zip sha256: ${zipSha}`);
   if (zipSha !== ZIP_SHA) throw new Error("ZIP checksum mismatch");
 
   console.log("extracting 9x9 zst (streaming, no full-zip unpack)...");
-  const { execFileSync } = await import("node:child_process");
   const zstPath = `${work}/kyouen-9x9.cert.zst`;
   if (!existsSync(zstPath)) {
     execFileSync("python", ["tools/unzip-one.py", zipPath, "kyouen-9x9.cert.zst", zstPath], { stdio: "inherit" });
