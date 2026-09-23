@@ -40,31 +40,28 @@ function refs(): UIRefs {
   };
   return {
     board: $("board"),
+    circleLayer: $("circleLayer") as unknown as SVGSVGElement,
     turnLabel: $("turnLabel"),
+    handLabel: $("handLabel"),
     fetchLabel: $("fetchLabel"),
-    undoBtn: $("undoBtn"),
-    redoBtn: $("redoBtn"),
-    resetBtn: $("resetBtn"),
-    retryBtn: $("retryBtn"),
-    hintToggle: $("hintToggle"),
-    resultToggle: $("resultToggle"),
-    soundToggle: $("soundToggle"),
-    resultPanel: $("resultPanel"),
-    resultMain: $("resultMain"),
+    coordLabel: $("coordLabel"),
+    undoBtn: $("undoBtn") as HTMLButtonElement,
+    redoBtn: $("redoBtn") as HTMLButtonElement,
+    resetBtn: $("resetBtn") as HTMLButtonElement,
+    retryBtn: $("retryBtn") as HTMLButtonElement,
+    hintToggle: $("hintToggle") as HTMLInputElement,
+    resultToggle: $("resultToggle") as HTMLInputElement,
+    soundToggle: $("soundToggle") as HTMLInputElement,
     dCanon: $("dCanon"),
     dShard: $("dShard"),
     dStrategy: $("dStrategy"),
     dFetch: $("dFetch"),
-    endOverlay: $("endOverlay"),
-    endTitle: $("endTitle"),
-    endText: $("endText"),
-    againBtn: $("againBtn"),
   };
 }
 
 async function main(): Promise<void> {
   const r = refs();
-  r.turnLabel.textContent = "盤面データを読み込み中…";
+  r.turnLabel.textContent = "盤面を読み込み中…";
   let table: bigint[];
   try {
     table = await loadForbidden();

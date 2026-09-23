@@ -4,75 +4,112 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="9×9共円ゲーム。証明済み必勝戦略を使うCPU（先手）と対戦できます。" />
-    <title>共円ゲーム 9×9 — 証明済み必勝CPUと対戦</title>
+    <title>共円ゲーム 9×9</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <main id="app">
       <header class="top">
-        <div>
-          <h1>共円ゲーム 9×9</h1>
-          <p class="subtitle">証明済み必勝戦略CPU（先手） vs あなた（後手）</p>
+        <div class="brand">
+          <p class="eyebrow">KYŌEN · 9×9</p>
+          <h1>共円ゲーム</h1>
+          <p class="subtitle">四点が同一円上に乗る手は禁じ手。置けなくなった側の負け。</p>
         </div>
-        <div class="toggles" role="group" aria-label="表示切替">
-          <button id="hintToggle" type="button" aria-pressed="false">Hint OFF</button>
-          <button id="resultToggle" type="button" aria-pressed="true">Result ON</button>
-          <button id="soundToggle" type="button" aria-pressed="false">音 OFF</button>
+        <div class="switches" role="group" aria-label="表示設定">
+          <label class="switch">
+            <input id="hintToggle" type="checkbox" />
+            <span class="switch-ui" aria-hidden="true"></span>
+            <span class="switch-label">Hint</span>
+          </label>
+          <label class="switch">
+            <input id="resultToggle" type="checkbox" checked />
+            <span class="switch-ui" aria-hidden="true"></span>
+            <span class="switch-label">Result</span>
+          </label>
+          <label class="switch">
+            <input id="soundToggle" type="checkbox" />
+            <span class="switch-ui" aria-hidden="true"></span>
+            <span class="switch-label">音</span>
+          </label>
         </div>
       </header>
 
       <section class="statusbar" aria-live="polite">
-        <div id="turnLabel" class="turn">CPUが中央に打ちました。あなたの番です。</div>
-        <div id="fetchLabel" class="fetch" hidden></div>
-      </section>
-
-      <section class="board-wrap">
-        <div id="board" class="board" role="grid" aria-label="9×9 共円ゲーム盤面"></div>
-      </section>
-
-      <section class="legend" aria-label="石の凡例">
-        <span class="chip"><i class="stone cpu"></i>CPU（先手・黒）</span>
-        <span class="chip"><i class="stone you"></i>YOU（後手・赤）</span>
-        <span class="chip"><i class="swatch hint-sw"></i>置ける点（Hint）</span>
-      </section>
-
-      <section class="controls" aria-label="操作">
-        <button id="undoBtn" type="button">Undo</button>
-        <button id="redoBtn" type="button">Redo</button>
-        <button id="resetBtn" type="button">Reset</button>
-        <button id="retryBtn" type="button" hidden>Retry</button>
-      </section>
-
-      <section id="resultPanel" class="result" aria-live="polite">
-        <div id="resultMain">手数 1 ／ あなたの番です</div>
-        <div class="prov">CPUは証明済み必勝戦略を参照しています（その場で完全探索はしません）。</div>
-        <details id="detailBox">
-          <summary>詳細</summary>
-          <dl>
-            <div><dt>canonical</dt><dd id="dCanon">-</dd></div>
-            <div><dt>shard</dt><dd id="dShard">-</dd></div>
-            <div><dt>strategy</dt><dd id="dStrategy">strategy-v1</dd></div>
-            <div><dt>fetch</dt><dd id="dFetch">0 shards / 0 B</dd></div>
-          </dl>
-        </details>
-      </section>
-
-      <section class="explain">
-        <h2>このCPUについて</h2>
-        <p>
-          このCPUはその場で手を予想しているわけではありません。9×9共円ゲームの完全解析から生成された証明済み必勝戦略（canonical
-          state → witness）を参照しています。CPUが先手のため、合法な手をどう選んでもCPU側には勝ち筋があります。
-        </p>
-        <p class="note">既存の対CPU練習ゲームとは独立した実装で、本作では完全解析から生成した証明済み戦略を使用します。</p>
-      </section>
-
-      <div id="endOverlay" class="overlay" hidden>
-        <div class="card" role="dialog" aria-modal="true" aria-labelledby="endTitle">
-          <h2 id="endTitle">終局</h2>
-          <p id="endText"></p>
-          <button id="againBtn" type="button">もう一度</button>
+        <div id="turnLabel" class="turn">盤面を読み込み中…</div>
+        <div class="meta">
+          <span id="handLabel">手数 0</span>
+          <span id="fetchLabel" class="fetch" hidden></span>
         </div>
-      </div>
+      </section>
+
+      <section class="board-frame" aria-label="対局盤">
+        <div class="coords coords-top" aria-hidden="true">
+          <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>J</span>
+        </div>
+        <div class="coords coords-left" aria-hidden="true">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
+        </div>
+        <div class="board-shell">
+          <svg class="grid-layer" viewBox="0 0 9 9" aria-hidden="true">
+            <g stroke="#3a2a18" stroke-width="0.035" stroke-linecap="square">
+              <line x1="0.5" y1="0.5" x2="8.5" y2="0.5" /><line x1="0.5" y1="1.5" x2="8.5" y2="1.5" />
+              <line x1="0.5" y1="2.5" x2="8.5" y2="2.5" /><line x1="0.5" y1="3.5" x2="8.5" y2="3.5" />
+              <line x1="0.5" y1="4.5" x2="8.5" y2="4.5" /><line x1="0.5" y1="5.5" x2="8.5" y2="5.5" />
+              <line x1="0.5" y1="6.5" x2="8.5" y2="6.5" /><line x1="0.5" y1="7.5" x2="8.5" y2="7.5" />
+              <line x1="0.5" y1="8.5" x2="8.5" y2="8.5" />
+              <line x1="0.5" y1="0.5" x2="0.5" y2="8.5" /><line x1="1.5" y1="0.5" x2="1.5" y2="8.5" />
+              <line x1="2.5" y1="0.5" x2="2.5" y2="8.5" /><line x1="3.5" y1="0.5" x2="3.5" y2="8.5" />
+              <line x1="4.5" y1="0.5" x2="4.5" y2="8.5" /><line x1="5.5" y1="0.5" x2="5.5" y2="8.5" />
+              <line x1="6.5" y1="0.5" x2="6.5" y2="8.5" /><line x1="7.5" y1="0.5" x2="7.5" y2="8.5" />
+              <line x1="8.5" y1="0.5" x2="8.5" y2="8.5" />
+            </g>
+            <g fill="#3a2a18">
+              <circle cx="2.5" cy="2.5" r="0.08" /><circle cx="6.5" cy="2.5" r="0.08" />
+              <circle cx="2.5" cy="6.5" r="0.08" /><circle cx="6.5" cy="6.5" r="0.08" />
+              <circle cx="4.5" cy="4.5" r="0.08" />
+            </g>
+          </svg>
+          <div id="board" class="board" role="grid" aria-label="9×9 共円ゲーム盤面"></div>
+          <svg id="circleLayer" class="circle-layer" viewBox="0 0 9 9" aria-hidden="true"></svg>
+        </div>
+        <div class="coords coords-bottom" aria-hidden="true">
+          <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>J</span>
+        </div>
+        <div class="coords coords-right" aria-hidden="true">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
+        </div>
+      </section>
+
+      <p class="coord-readout"><span id="coordLabel">—</span></p>
+
+      <nav class="controls" aria-label="操作">
+        <button id="resetBtn" type="button" class="btn">Reset</button>
+        <button id="undoBtn" type="button" class="btn">前に戻る</button>
+        <button id="redoBtn" type="button" class="btn">次に進む</button>
+        <button id="retryBtn" type="button" class="btn btn-quiet" hidden>Retry</button>
+      </nav>
+
+      <section class="legend" aria-label="凡例">
+        <span class="chip"><i class="stone stone-black"></i>石</span>
+        <span class="chip chip-hint-only"><i class="stone stone-cpu"></i>CPU</span>
+        <span class="chip chip-hint-only"><i class="stone stone-you"></i>あなた</span>
+        <span class="chip"><i class="swatch hint-sw"></i>置ける点（Hint）</span>
+        <span class="chip"><i class="swatch ring-sw"></i>共円（Result）</span>
+      </section>
+
+      <details class="about">
+        <summary>このCPUについて</summary>
+        <p>
+          その場で手を読んでいるのではなく、9×9共円ゲームの完全解析から生成した証明済み必勝戦略
+          （canonical state → witness）を参照しています。CPUは先手・初手は中央です。
+        </p>
+        <dl class="tech">
+          <div><dt>strategy</dt><dd id="dStrategy">strategy-v1</dd></div>
+          <div><dt>canonical</dt><dd id="dCanon">-</dd></div>
+          <div><dt>shard</dt><dd id="dShard">-</dd></div>
+          <div><dt>fetch</dt><dd id="dFetch">0 shards / 0 B</dd></div>
+        </dl>
+      </details>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

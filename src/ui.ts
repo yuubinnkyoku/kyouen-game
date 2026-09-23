@@ -1,34 +1,33 @@
 import { POINT_COUNT } from "./core";
 import type { Engine } from "./engine";
 import { GameController } from "./controller";
-import { pointToXY } from "./core";
+import { circleFromQuad, coordName, type Circle } from "./geometry";
 
 export interface UIRefs {
   board: HTMLElement;
+  circleLayer: SVGSVGElement;
   turnLabel: HTMLElement;
+  handLabel: HTMLElement;
   fetchLabel: HTMLElement;
+  coordLabel: HTMLElement;
   undoBtn: HTMLButtonElement;
   redoBtn: HTMLButtonElement;
   resetBtn: HTMLButtonElement;
   retryBtn: HTMLButtonElement;
-  hintToggle: HTMLButtonElement;
-  resultToggle: HTMLButtonElement;
-  soundToggle: HTMLButtonElement;
-  resultPanel: HTMLElement;
-  resultMain: HTMLElement;
+  hintToggle: HTMLInputElement;
+  resultToggle: HTMLInputElement;
+  soundToggle: HTMLInputElement;
   dCanon: HTMLElement;
   dShard: HTMLElement;
   dStrategy: HTMLElement;
   dFetch: HTMLElement;
-  endOverlay: HTMLElement;
-  endTitle: HTMLElement;
-  endText: HTMLElement;
-  againBtn: HTMLButtonElement;
 }
 
 function beep(win: boolean): void {
   try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const Ctx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctx();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -44,26 +43,33 @@ function beep(win: boolean): void {
   }
 }
 
-export function createUI(refs: UIRefs, game: GameController, engine: Engine, store: { fetches: number; bytesFetched: number }): {
+export function createUI(
+  refs: UIRefs,
+  game: GameController,
+  engine: Engine,
+  store: { fetches: number; bytesFetched: number },
+): {
   cells: HTMLButtonElement[];
   setHint: (on: boolean) => void;
   setResult: (on: boolean) => void;
   setSound: (on: boolean) => void;
   render: () => void;
 } {
-  let hint = false;
-  let resultOn = true;
-  let sound = false;
   const cells: HTMLButtonElement[] = [];
   let blame: number[] | null = null;
+  let endCircles: Circle[] = [];
+  let prevOver = false;
+
+  const hintOn = () => refs.hintToggle.checked;
+  const resultOn = () => refs.resultToggle.checked;
+  const soundOn = () => refs.soundToggle.checked;
 
   for (let p = 0; p < POINT_COUNT; p++) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "cell";
-    const { x, y } = pointToXY(p);
     b.setAttribute("role", "gridcell");
-    b.setAttribute("aria-label", `(${x},${y})`);
+    b.setAttribute("aria-label", `(${coordName(p)})`);
     b.dataset.point = String(p);
     b.addEventListener("click", () => {
       if (game.over || game.busy || game.turn !== "you") return;
@@ -75,28 +81,93 @@ export function createUI(refs: UIRefs, game: GameController, engine: Engine, sto
         render();
       }
     });
+    b.addEventListener("mouseenter", () => {
+      refs.coordLabel.textContent = coordName(p);
+    });
+    b.addEventListener("mouseleave", () => {
+      refs.coordLabel.textContent = "—";
+    });
     refs.board.appendChild(b);
     cells.push(b);
   }
 
+  function collectEndCircles(): Circle[] {
+    if (!game.over) return [];
+    const seen = new Set<string>();
+    const out: Circle[] = [];
+    for (let p = 0; p < POINT_COUNT; p++) {
+      if (game.stones.has(p)) continue;
+      const quad = engine.blameQuad(game.state, p);
+      if (!quad) continue;
+      const key = quad
+        .slice(0, 3)
+        .sort((a, b) => a - b)
+        .join(",");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const c = circleFromQuad(quad);
+      if (c) out.push(c);
+      if (out.length >= 10) break;
+    }
+    return out;
+  }
+
+  function paintCircles(): void {
+    const layer = refs.circleLayer;
+    while (layer.firstChild) layer.removeChild(layer.firstChild);
+    if (!resultOn()) return;
+
+    const draw = (c: Circle, faint: boolean) => {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      el.setAttribute("cx", String(c.cx));
+      el.setAttribute("cy", String(c.cy));
+      el.setAttribute("r", String(c.r));
+      if (faint) el.setAttribute("class", "faint");
+      layer.appendChild(el);
+    };
+
+    if (blame) {
+      const c = circleFromQuad(blame);
+      if (c) draw(c, false);
+    }
+    for (const c of endCircles) draw(c, true);
+  }
+
   function render(): void {
     const legal = new Set(game.legalForYou());
+    const showHints = hintOn();
+    refs.board.classList.toggle("hint-on", showHints);
+
+    if (game.over && !prevOver) {
+      endCircles = collectEndCircles();
+      if (soundOn()) beep(game.winner === "you");
+    }
+    if (!game.over) endCircles = [];
+    prevOver = game.over;
+
     for (let p = 0; p < POINT_COUNT; p++) {
       const c = cells[p]!;
       const side = game.stones.get(p);
       c.classList.toggle("cpu", side === "cpu");
       c.classList.toggle("you", side === "you");
       c.classList.toggle("last", game.lastMove === p);
-      c.classList.toggle("hint-ok", hint && legal.has(p));
+      c.classList.toggle("hint-ok", showHints && legal.has(p));
       c.classList.toggle("blame", blame !== null && blame.includes(p));
-      c.disabled = game.over || game.busy || game.turn !== "you" || (!legal.has(p) && !game.stones.has(p) && !hint);
-      const { x, y } = pointToXY(p);
-      c.setAttribute("aria-label", side ? `(${x},${y}) ${side === "cpu" ? "CPU" : "YOU"}` : `(${x},${y}) 空き`);
+      // Hint OFF: never restrict empty points. Hint ON: keep all empty points active for blame probe.
+      c.disabled =
+        game.over ||
+        game.busy ||
+        game.turn !== "you" ||
+        Boolean(side);
+      const name = coordName(p);
+      c.setAttribute(
+        "aria-label",
+        side ? `${name} ${side === "cpu" ? "CPU" : "YOU"}` : `${name} 空き`,
+      );
     }
 
     if (game.over) {
-      refs.turnLabel.textContent =
-        game.winner === "cpu" ? "終局 — CPUの勝ちです" : "終局 — あなたの勝ちです";
+      refs.turnLabel.textContent = "終局 — 置ける点がありません";
     } else if (game.busy) {
       refs.turnLabel.textContent = "必勝手を確認中…";
     } else {
@@ -104,12 +175,14 @@ export function createUI(refs: UIRefs, game: GameController, engine: Engine, sto
         game.turn === "you" ? "あなたの番です" : "CPUの番です";
     }
 
+    refs.handLabel.textContent = `手数 ${game.handCount()}`;
+
     if (game.busy || refs.fetchLabel.dataset.active === "1") {
       refs.fetchLabel.hidden = false;
       refs.fetchLabel.textContent = "strategy取得中…";
     } else if (game.error) {
       refs.fetchLabel.hidden = false;
-      refs.fetchLabel.textContent = `取得に失敗しました: ${game.error}`;
+      refs.fetchLabel.textContent = `取得に失敗: ${game.error}`;
     } else {
       refs.fetchLabel.hidden = true;
     }
@@ -119,11 +192,6 @@ export function createUI(refs: UIRefs, game: GameController, engine: Engine, sto
     refs.redoBtn.disabled = !game.canRedo();
     refs.resetBtn.disabled = game.busy;
 
-    refs.resultPanel.hidden = !resultOn;
-    const n = game.handCount();
-    refs.resultMain.textContent = game.over
-      ? `手数 ${n} ／ ${game.winner === "cpu" ? "CPUの勝ち" : "あなたの勝ち"}`
-      : `手数 ${n} ／ ${game.turn === "you" ? "あなたの番です" : "CPUの番です"}`;
     const last = game.lastCpu;
     refs.dCanon.textContent =
       last?.canonHi === null || last?.canonHi === undefined
@@ -135,61 +203,66 @@ export function createUI(refs: UIRefs, game: GameController, engine: Engine, sto
         : last.shard.toString(16).padStart(2, "0");
     refs.dFetch.textContent = `${store.fetches} shards / ${store.bytesFetched} B`;
 
-    if (game.over) {
-      refs.endOverlay.hidden = false;
-      refs.endTitle.textContent = game.winner === "cpu" ? "CPUの勝ち" : "あなたの勝ち";
-      refs.endText.textContent =
-        game.winner === "cpu"
-          ? `手数 ${n} で終局。証明済み必勝戦略どおりの勝ち筋でした。`
-          : `手数 ${n} で終局。あなたの勝ちです。`;
-      if (sound) beep(game.winner === "you");
-    } else {
-      refs.endOverlay.hidden = true;
-    }
+    paintCircles();
   }
 
-  refs.undoBtn.addEventListener("click", () => game.undo());
-  refs.redoBtn.addEventListener("click", () => game.redo());
+  refs.undoBtn.addEventListener("click", () => {
+    blame = null;
+    game.undo();
+  });
+  refs.redoBtn.addEventListener("click", () => {
+    blame = null;
+    game.redo();
+  });
   const doReset = () => {
     blame = null;
+    endCircles = [];
+    prevOver = false;
     game.reset();
   };
   refs.resetBtn.addEventListener("click", doReset);
-  refs.againBtn.addEventListener("click", doReset);
   refs.retryBtn.addEventListener("click", () => {
     refs.fetchLabel.dataset.active = "0";
     game.error = null;
     render();
   });
-  refs.hintToggle.addEventListener("click", () => {
-    hint = !hint;
-    refs.hintToggle.textContent = hint ? "Hint ON" : "Hint OFF";
-    refs.hintToggle.setAttribute("aria-pressed", String(hint));
-    if (!hint) blame = null;
+
+  const onHintChange = () => {
+    if (!hintOn()) blame = null;
     render();
-  });
-  refs.resultToggle.addEventListener("click", () => {
-    resultOn = !resultOn;
-    refs.resultToggle.textContent = resultOn ? "Result ON" : "Result OFF";
-    refs.resultToggle.setAttribute("aria-pressed", String(resultOn));
-    render();
-  });
-  refs.soundToggle.addEventListener("click", () => {
-    sound = !sound;
-    refs.soundToggle.textContent = sound ? "音 ON" : "音 OFF";
-    refs.soundToggle.setAttribute("aria-pressed", String(sound));
-  });
+  };
+  const onResultChange = () => render();
+  refs.hintToggle.addEventListener("change", onHintChange);
+  refs.resultToggle.addEventListener("change", onResultChange);
+
+  const syncSwitch = (input: HTMLInputElement) => {
+    input.closest(".switch")?.classList.toggle("on", input.checked);
+    input.setAttribute("aria-pressed", String(input.checked));
+  };
+  for (const input of [refs.hintToggle, refs.resultToggle, refs.soundToggle]) {
+    syncSwitch(input);
+    input.addEventListener("change", () => syncSwitch(input));
+  }
 
   return {
     cells,
     setHint: (on: boolean) => {
-      if ((on && !hint) || (!on && hint)) refs.hintToggle.click();
+      if (refs.hintToggle.checked !== on) {
+        refs.hintToggle.checked = on;
+        refs.hintToggle.dispatchEvent(new Event("change"));
+      }
     },
     setResult: (on: boolean) => {
-      if ((on && !resultOn) || (!on && resultOn)) refs.resultToggle.click();
+      if (refs.resultToggle.checked !== on) {
+        refs.resultToggle.checked = on;
+        refs.resultToggle.dispatchEvent(new Event("change"));
+      }
     },
     setSound: (on: boolean) => {
-      if ((on && !sound) || (!on && sound)) refs.soundToggle.click();
+      if (refs.soundToggle.checked !== on) {
+        refs.soundToggle.checked = on;
+        refs.soundToggle.dispatchEvent(new Event("change"));
+      }
     },
     render,
   };

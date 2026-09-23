@@ -4,5 +4,6 @@ dist/
 .strategy-work/
 test-results/
 playwright-report/
+.playwright-mcp/
 *.log
 .DS_Store
