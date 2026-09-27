@@ -51,7 +51,6 @@ function refs(): UIRefs {
     retryBtn: $("retryBtn") as HTMLButtonElement,
     hintToggle: $("hintToggle") as HTMLInputElement,
     resultToggle: $("resultToggle") as HTMLInputElement,
-    soundToggle: $("soundToggle") as HTMLInputElement,
     dCanon: $("dCanon"),
     dShard: $("dShard"),
     dStrategy: $("dStrategy"),
