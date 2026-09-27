@@ -27,6 +27,8 @@ interface ResultCircle {
   latest: boolean;
 }
 
+const MAX_RESULT_CIRCLES = 1000;
+
 function circleKey(c: Circle): string {
   return `${c.cx.toFixed(9)},${c.cy.toFixed(9)},${c.r.toFixed(9)}`;
 }
@@ -73,7 +75,7 @@ export function createUI(
     cells.push(b);
   }
 
-  function collectResultCircles(): ResultCircle[] {
+  function collectResultCircles(): ResultCircle[] | null {
     const byCircle = new Map<string, ResultCircle>();
     for (const quad of engine.violatingQuads(game.state)) {
       const circle = circleFromQuad(quad);
@@ -85,6 +87,7 @@ export function createUI(
         if (latest) seen.latest = true;
       } else {
         byCircle.set(key, { circle, latest });
+        if (byCircle.size >= MAX_RESULT_CIRCLES) return null;
       }
     }
     return [...byCircle.values()];
@@ -104,7 +107,9 @@ export function createUI(
       layer.appendChild(el);
     };
 
-    for (const item of collectResultCircles()) draw(item.circle, !item.latest);
+    const circles = collectResultCircles();
+    if (circles === null) return;
+    for (const item of circles) draw(item.circle, !item.latest);
   }
 
   function render(): void {
