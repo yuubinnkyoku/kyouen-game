@@ -107,7 +107,7 @@ export function createUI(
       seen.add(key);
       const c = circleFromQuad(quad);
       if (c) out.push(c);
-      if (out.length >= 10) break;
+      // Keep collecting until every blocked empty point is represented by at least one result circle.
     }
     return out;
   }
