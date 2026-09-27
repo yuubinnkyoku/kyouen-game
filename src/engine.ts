@@ -5,8 +5,10 @@ export interface Engine {
   bannedFromState(state: BoardBits): bigint;
   legalMoves(state: BoardBits): number[];
   isLegal(state: BoardBits, p: number): boolean;
-  /** For an illegal empty point, one forbidden quadruple completed by playing p (if any). */
+  /** For an unsafe empty point, one forbidden quadruple completed by playing p (if any). */
   blameQuad(state: BoardBits, p: number): number[] | null;
+  /** Every forbidden quadruple already present on the board, with each 4-set returned once. */
+  violatingQuads(state: BoardBits): number[][];
   forbiddenCount(): number;
 }
 
@@ -55,11 +57,31 @@ export function createEngineFromCompletion(table: bigint[]): Engine {
     return null;
   };
 
+  const violatingQuads = (state: BoardBits): number[][] => {
+    const pts = statePoints(state);
+    const out: number[][] = [];
+    for (let i = 0; i < pts.length; i++)
+      for (let j = i + 1; j < pts.length; j++)
+        for (let k = j + 1; k < pts.length; k++) {
+          const a = pts[i]!;
+          const b = pts[j]!;
+          const c = pts[k]!;
+          const mask = table[completionIndex(a, b, c)]!;
+          if (mask === 0n) continue;
+          for (let l = k + 1; l < pts.length; l++) {
+            const d = pts[l]!;
+            if (((mask >> BigInt(d)) & 1n) === 1n) out.push([a, b, c, d]);
+          }
+        }
+    return out;
+  };
+
   return {
     bannedFromState,
     legalMoves,
     isLegal,
     blameQuad,
+    violatingQuads,
     forbiddenCount: () => -1,
   };
 }

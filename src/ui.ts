@@ -22,6 +22,15 @@ export interface UIRefs {
   dFetch: HTMLElement;
 }
 
+interface ResultCircle {
+  circle: Circle;
+  latest: boolean;
+}
+
+function circleKey(c: Circle): string {
+  return `${c.cx.toFixed(9)},${c.cy.toFixed(9)},${c.r.toFixed(9)}`;
+}
+
 export function createUI(
   refs: UIRefs,
   game: GameController,
@@ -34,9 +43,6 @@ export function createUI(
   render: () => void;
 } {
   const cells: HTMLButtonElement[] = [];
-  let blame: number[] | null = null;
-  let endCircles: Circle[] = [];
-  let prevOver = false;
 
   const hintOn = () => refs.hintToggle.checked;
   const resultOn = () => refs.resultToggle.checked;
@@ -49,14 +55,13 @@ export function createUI(
     b.setAttribute("aria-label", `(${coordName(p)})`);
     b.dataset.point = String(p);
     b.addEventListener("click", () => {
-      if (game.over || game.busy || game.turn !== "you") return;
-      if (game["state"] && engine.isLegal(game.state, p)) {
-        blame = null;
-        void game.playYou(p);
-      } else if (!engine.isLegal(game.state, p) && !game.stones.has(p)) {
-        blame = engine.blameQuad(game.state, p);
-        render();
+      if (game.busy || game.stones.has(p)) return;
+      if (game.over) {
+        game.playAnalysis(p);
+        return;
       }
+      if (game.turn !== "you") return;
+      void game.playYou(p);
     });
     b.addEventListener("mouseenter", () => {
       refs.coordLabel.textContent = coordName(p);
@@ -68,25 +73,21 @@ export function createUI(
     cells.push(b);
   }
 
-  function collectEndCircles(): Circle[] {
-    if (!game.over) return [];
-    const seen = new Set<string>();
-    const out: Circle[] = [];
-    for (let p = 0; p < POINT_COUNT; p++) {
-      if (game.stones.has(p)) continue;
-      const quad = engine.blameQuad(game.state, p);
-      if (!quad) continue;
-      const key = quad
-        .slice(0, 3)
-        .sort((a, b) => a - b)
-        .join(",");
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const c = circleFromQuad(quad);
-      if (c) out.push(c);
-      // Keep collecting until every blocked empty point is represented by at least one result circle.
+  function collectResultCircles(): ResultCircle[] {
+    const byCircle = new Map<string, ResultCircle>();
+    for (const quad of engine.violatingQuads(game.state)) {
+      const circle = circleFromQuad(quad);
+      if (!circle) continue;
+      const key = circleKey(circle);
+      const latest = game.lastMove !== null && quad.includes(game.lastMove);
+      const seen = byCircle.get(key);
+      if (seen) {
+        if (latest) seen.latest = true;
+      } else {
+        byCircle.set(key, { circle, latest });
+      }
     }
-    return out;
+    return [...byCircle.values()];
   }
 
   function paintCircles(): void {
@@ -103,23 +104,13 @@ export function createUI(
       layer.appendChild(el);
     };
 
-    if (blame) {
-      const c = circleFromQuad(blame);
-      if (c) draw(c, false);
-    }
-    for (const c of endCircles) draw(c, true);
+    for (const item of collectResultCircles()) draw(item.circle, !item.latest);
   }
 
   function render(): void {
     const legal = new Set(game.legalForYou());
     const showHints = hintOn();
     refs.board.classList.toggle("hint-on", showHints);
-
-    if (game.over && !prevOver) {
-      endCircles = collectEndCircles();
-    }
-    if (!game.over) endCircles = [];
-    prevOver = game.over;
 
     for (let p = 0; p < POINT_COUNT; p++) {
       const c = cells[p]!;
@@ -128,12 +119,9 @@ export function createUI(
       c.classList.toggle("you", side === "you");
       c.classList.toggle("last", game.lastMove === p);
       c.classList.toggle("hint-ok", showHints && legal.has(p));
-      c.classList.toggle("blame", blame !== null && blame.includes(p));
-      // Hint OFF: never restrict empty points. Hint ON: keep all empty points active for blame probe.
       c.disabled =
-        game.over ||
         game.busy ||
-        game.turn !== "you" ||
+        (!game.over && game.turn !== "you") ||
         Boolean(side);
       const name = coordName(p);
       c.setAttribute(
@@ -143,9 +131,18 @@ export function createUI(
     }
 
     if (game.over) {
-      refs.turnLabel.textContent = "終局 — 置ける点がありません";
+      const outcome =
+        game.winner === "you" ? "あなたの勝ち" :
+        game.winner === "cpu" ? "あなたの負け" :
+        "終局";
+      refs.turnLabel.textContent =
+        game.handCount() === POINT_COUNT
+          ? `${outcome} — 盤面が埋まりました`
+          : `${outcome} — 自由に置いて確認できます`;
     } else if (game.busy) {
       refs.turnLabel.textContent = "必勝手を確認中…";
+    } else if (game.turn === "you" && legal.size === 0) {
+      refs.turnLabel.textContent = "あなたの番です — 安全な手がありません";
     } else {
       refs.turnLabel.textContent =
         game.turn === "you" ? "あなたの番です" : "CPUの番です";
@@ -182,31 +179,16 @@ export function createUI(
     paintCircles();
   }
 
-  refs.undoBtn.addEventListener("click", () => {
-    blame = null;
-    game.undo();
-  });
-  refs.redoBtn.addEventListener("click", () => {
-    blame = null;
-    game.redo();
-  });
-  const doReset = () => {
-    blame = null;
-    endCircles = [];
-    prevOver = false;
-    game.reset();
-  };
-  refs.resetBtn.addEventListener("click", doReset);
+  refs.undoBtn.addEventListener("click", () => game.undo());
+  refs.redoBtn.addEventListener("click", () => game.redo());
+  refs.resetBtn.addEventListener("click", () => game.reset());
   refs.retryBtn.addEventListener("click", () => {
     refs.fetchLabel.dataset.active = "0";
     game.error = null;
     render();
   });
 
-  const onHintChange = () => {
-    if (!hintOn()) blame = null;
-    render();
-  };
+  const onHintChange = () => render();
   const onResultChange = () => render();
   refs.hintToggle.addEventListener("change", onHintChange);
   refs.resultToggle.addEventListener("change", onResultChange);

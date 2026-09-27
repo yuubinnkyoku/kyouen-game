@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GameController } from "../../src/controller";
-import { CENTER_ID, POINT_COUNT } from "../../src/core";
+import { CENTER_ID, POINT_COUNT, stateFromPoints } from "../../src/core";
 import { createEngineFromForbidden } from "../../src/engine";
 import { generateForbidden } from "../../src/rules";
 import { cpuMove, StrategyStore } from "../../src/game";
@@ -59,6 +59,42 @@ describe("controller: reset / undo / redo / result", () => {
   it("cpu first move is the center", async () => {
     const mv = await cpuMove({ lo: 0n, hi: 0n }, fakeStore(new Map()), engine);
     expect(mv.point).toBe(40);
+  });
+
+  it("allows a losing move and keeps the finished board editable", async () => {
+    const game = new GameController(engine, fakeStore(new Map()), noop);
+    game.reset();
+    game.state = stateFromPoints([0, 8, 72]);
+    game.stones.clear();
+    game.stones.set(0, "cpu");
+    game.stones.set(8, "cpu");
+    game.stones.set(72, "you");
+    game.moveOrder = [
+      { point: 0, side: "cpu" },
+      { point: 8, side: "cpu" },
+      { point: 72, side: "you" },
+    ];
+    game.turn = "you";
+    game.over = false;
+    game.winner = null;
+
+    expect(engine.isLegal(game.state, 80)).toBe(false);
+    await game.playYou(80);
+
+    expect(game.stones.get(80)).toBe("you");
+    expect(game.over).toBe(true);
+    expect(game.winner).toBe("cpu");
+    expect(engine.violatingQuads(game.state)).toContainEqual([0, 8, 72, 80]);
+
+    game.playAnalysis(1);
+    expect(game.stones.get(1)).toBe("you");
+    expect(game.handCount()).toBe(5);
+
+    game.undo();
+    expect(game.stones.has(1)).toBe(false);
+    expect(game.over).toBe(true);
+    game.redo();
+    expect(game.stones.get(1)).toBe("you");
   });
 
   it("terminal detection: full first row leaves row points banned, game ends when no moves", () => {

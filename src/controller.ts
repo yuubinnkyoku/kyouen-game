@@ -7,6 +7,7 @@ export type Side = "cpu" | "you";
 export interface HistoryEntry {
   you: number;
   cpu: number | null;
+  loser: Side | null;
 }
 
 export class GameController {
@@ -15,6 +16,8 @@ export class GameController {
   moveOrder: { point: number; side: Side }[] = [];
   history: HistoryEntry[] = [];
   undone: HistoryEntry[] = [];
+  analysisMoves: number[] = [];
+  analysisUndone: number[] = [];
   lastMove: number | null = null;
   turn: Side = "cpu";
   over = false;
@@ -42,6 +45,8 @@ export class GameController {
     this.moveOrder = [];
     this.history = [];
     this.undone = [];
+    this.analysisMoves = [];
+    this.analysisUndone = [];
     this.lastMove = null;
     this.over = false;
     this.winner = null;
@@ -50,7 +55,6 @@ export class GameController {
     this.lastCpu = null;
     this.place(CENTER_ID, "cpu");
     this.turn = "you";
-    this.finishIfTerminal("you");
     this.emit();
   }
 
@@ -69,14 +73,9 @@ export class GameController {
     this.lastMove = this.moveOrder.length ? this.moveOrder[this.moveOrder.length - 1]!.point : null;
   }
 
-  private finishIfTerminal(nextTurn: Side): boolean {
-    if (this.engine.legalMoves(this.state).length === 0) {
-      this.over = true;
-      this.winner = nextTurn === "you" ? "cpu" : "you";
-      this.emit();
-      return true;
-    }
-    return false;
+  private firstEmptyPoint(): number | null {
+    for (let p = 0; p < POINT_COUNT; p++) if (!hasPoint(this.state, p)) return p;
+    return null;
   }
 
   legalForYou(): number[] {
@@ -84,26 +83,61 @@ export class GameController {
     return this.engine.legalMoves(this.state);
   }
 
+  playAnalysis(p: number): void {
+    if (!this.over || this.busy) return;
+    if (p < 0 || p >= POINT_COUNT || hasPoint(this.state, p)) return;
+    this.place(p, "you");
+    this.analysisMoves.push(p);
+    this.analysisUndone = [];
+    this.emit();
+  }
+
   async playYou(p: number): Promise<void> {
     if (this.over || this.busy || this.turn !== "you") return;
     if (p < 0 || p >= POINT_COUNT || hasPoint(this.state, p)) return;
-    if (!this.engine.isLegal(this.state, p)) return;
+
+    const youLose = !this.engine.isLegal(this.state, p);
     this.error = null;
     this.busy = true;
     this.emit();
     this.place(p, "you");
-    let cpuPoint: number | null = null;
-    if (this.finishIfTerminal("cpu")) {
-      this.history.push({ you: p, cpu: null });
+
+    if (youLose) {
+      this.history.push({ you: p, cpu: null, loser: "you" });
       this.undone = [];
+      this.analysisUndone = [];
       this.busy = false;
       this.turn = "you";
+      this.over = true;
+      this.winner = "cpu";
       this.emit();
       return;
     }
+
     this.turn = "cpu";
     this.emit();
     await new Promise((r) => setTimeout(r, 120));
+
+    const cpuSafeMoves = this.engine.legalMoves(this.state);
+    if (cpuSafeMoves.length === 0) {
+      const losingPoint = this.firstEmptyPoint();
+      if (losingPoint === null) {
+        this.history.push({ you: p, cpu: null, loser: "cpu" });
+      } else {
+        this.place(losingPoint, "cpu");
+        this.history.push({ you: p, cpu: losingPoint, loser: "cpu" });
+      }
+      this.undone = [];
+      this.analysisUndone = [];
+      this.busy = false;
+      this.turn = "you";
+      this.over = true;
+      this.winner = "you";
+      this.emit();
+      return;
+    }
+
+    let cpuPoint: number | null = null;
     try {
       const mv = await cpuMove(this.state, this.store, this.engine);
       this.lastCpu = mv;
@@ -118,16 +152,27 @@ export class GameController {
       this.emit();
       return;
     }
-    this.history.push({ you: p, cpu: cpuPoint });
+
+    this.history.push({ you: p, cpu: cpuPoint, loser: null });
     this.undone = [];
+    this.analysisUndone = [];
     this.busy = false;
     this.turn = "you";
-    this.finishIfTerminal("you");
     this.emit();
   }
 
   undo(): void {
-    if (this.busy || this.history.length === 0) return;
+    if (this.busy) return;
+
+    if (this.over && this.analysisMoves.length > 0) {
+      const p = this.analysisMoves.pop()!;
+      this.unplace(p);
+      this.analysisUndone.push(p);
+      this.emit();
+      return;
+    }
+
+    if (this.history.length === 0) return;
     const entry = this.history.pop()!;
     if (entry.cpu !== null) this.unplace(entry.cpu);
     this.unplace(entry.you);
@@ -140,22 +185,37 @@ export class GameController {
   }
 
   redo(): void {
-    if (this.busy || this.undone.length === 0) return;
+    if (this.busy) return;
+
+    if (this.over && this.analysisUndone.length > 0) {
+      const p = this.analysisUndone.pop()!;
+      this.place(p, "you");
+      this.analysisMoves.push(p);
+      this.emit();
+      return;
+    }
+
+    if (this.undone.length === 0) return;
     const entry = this.undone.pop()!;
     this.place(entry.you, "you");
     if (entry.cpu !== null) this.place(entry.cpu, "cpu");
     this.history.push(entry);
     this.turn = "you";
-    this.finishIfTerminal("you");
+    this.over = entry.loser !== null;
+    this.winner =
+      entry.loser === "you" ? "cpu" :
+      entry.loser === "cpu" ? "you" :
+      null;
     this.emit();
   }
 
   canUndo(): boolean {
-    return !this.busy && this.history.length > 0;
+    return !this.busy && (this.analysisMoves.length > 0 || this.history.length > 0);
   }
 
   canRedo(): boolean {
-    return !this.busy && this.undone.length > 0;
+    return !this.busy &&
+      ((this.over && this.analysisUndone.length > 0) || this.undone.length > 0);
   }
 
   handCount(): number {
