@@ -18,7 +18,7 @@
   --card: #faf7f0;
   --edge: #cbbfa8;
   --shadow: rgba(36, 28, 20, 0.12);
-  --board-size: min(92vw, 420px);
+  --board-size: min(92vw, calc(100vw - var(--coord) * 2 - 8px), 420px);
   --coord: 22px;
 }
 
@@ -27,6 +27,8 @@
 html, body {
   margin: 0;
   min-height: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
