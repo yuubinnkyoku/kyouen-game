@@ -27,7 +27,7 @@ interface ResultCircle {
   latest: boolean;
 }
 
-const MAX_RESULT_CIRCLES = 1000;
+const MAX_RESULT_CIRCLES = 100;
 
 function circleKey(c: Circle): string {
   return `${c.cx.toFixed(9)},${c.cy.toFixed(9)},${c.r.toFixed(9)}`;
