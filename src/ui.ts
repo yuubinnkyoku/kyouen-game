@@ -16,31 +16,10 @@ export interface UIRefs {
   retryBtn: HTMLButtonElement;
   hintToggle: HTMLInputElement;
   resultToggle: HTMLInputElement;
-  soundToggle: HTMLInputElement;
   dCanon: HTMLElement;
   dShard: HTMLElement;
   dStrategy: HTMLElement;
   dFetch: HTMLElement;
-}
-
-function beep(win: boolean): void {
-  try {
-    const Ctx =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.frequency.value = win ? 660 : 220;
-    g.gain.value = 0.08;
-    o.start();
-    o.stop(ctx.currentTime + 0.18);
-    setTimeout(() => void ctx.close(), 300);
-  } catch {
-    /* audio unsupported */
-  }
 }
 
 export function createUI(
@@ -52,7 +31,6 @@ export function createUI(
   cells: HTMLButtonElement[];
   setHint: (on: boolean) => void;
   setResult: (on: boolean) => void;
-  setSound: (on: boolean) => void;
   render: () => void;
 } {
   const cells: HTMLButtonElement[] = [];
@@ -62,7 +40,6 @@ export function createUI(
 
   const hintOn = () => refs.hintToggle.checked;
   const resultOn = () => refs.resultToggle.checked;
-  const soundOn = () => refs.soundToggle.checked;
 
   for (let p = 0; p < POINT_COUNT; p++) {
     const b = document.createElement("button");
@@ -140,7 +117,6 @@ export function createUI(
 
     if (game.over && !prevOver) {
       endCircles = collectEndCircles();
-      if (soundOn()) beep(game.winner === "you");
     }
     if (!game.over) endCircles = [];
     prevOver = game.over;
@@ -239,7 +215,7 @@ export function createUI(
     input.closest(".switch")?.classList.toggle("on", input.checked);
     input.setAttribute("aria-pressed", String(input.checked));
   };
-  for (const input of [refs.hintToggle, refs.resultToggle, refs.soundToggle]) {
+  for (const input of [refs.hintToggle, refs.resultToggle]) {
     syncSwitch(input);
     input.addEventListener("change", () => syncSwitch(input));
   }
@@ -256,12 +232,6 @@ export function createUI(
       if (refs.resultToggle.checked !== on) {
         refs.resultToggle.checked = on;
         refs.resultToggle.dispatchEvent(new Event("change"));
-      }
-    },
-    setSound: (on: boolean) => {
-      if (refs.soundToggle.checked !== on) {
-        refs.soundToggle.checked = on;
-        refs.soundToggle.dispatchEvent(new Event("change"));
       }
     },
     render,
