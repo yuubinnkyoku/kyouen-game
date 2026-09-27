@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellCenter, circleFromQuad, circumcircle, coordName } from "../../src/geometry";
+import { cellCenter, circleFromQuad, circumcircle, coordName, lineFromQuad, lineThroughBoard } from "../../src/geometry";
 
 describe("geometry", () => {
   it("maps points to Go-style coordinates", () => {
@@ -26,5 +26,23 @@ describe("geometry", () => {
     const c = circleFromQuad([0, 2, 18, 20]);
     expect(c).not.toBeNull();
     expect(c!.r).toBeGreaterThan(0);
+  });
+
+  it("clips a horizontal collinear result to the board", () => {
+    const line = lineFromQuad([0, 1, 2, 3]);
+    expect(line).not.toBeNull();
+    expect(line!.x1).toBeCloseTo(0, 10);
+    expect(line!.y1).toBeCloseTo(0.5, 10);
+    expect(line!.x2).toBeCloseTo(9, 10);
+    expect(line!.y2).toBeCloseTo(0.5, 10);
+  });
+
+  it("clips a diagonal line across the full board", () => {
+    const line = lineThroughBoard(cellCenter(0), cellCenter(80));
+    expect(line).not.toBeNull();
+    expect(line!.x1).toBeCloseTo(0, 10);
+    expect(line!.y1).toBeCloseTo(0, 10);
+    expect(line!.x2).toBeCloseTo(9, 10);
+    expect(line!.y2).toBeCloseTo(9, 10);
   });
 });

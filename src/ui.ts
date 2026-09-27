@@ -1,7 +1,7 @@
 import { POINT_COUNT } from "./core";
 import type { Engine } from "./engine";
 import { GameController } from "./controller";
-import { circleFromQuad, coordName, type Circle } from "./geometry";
+import { circleFromQuad, coordName, lineFromQuad, type Circle, type LineSegment } from "./geometry";
 
 export interface UIRefs {
   board: HTMLElement;
@@ -22,15 +22,22 @@ export interface UIRefs {
   dFetch: HTMLElement;
 }
 
-interface ResultCircle {
-  circle: Circle;
-  latest: boolean;
-}
+type ResultShape =
+  | { kind: "circle"; circle: Circle; latest: boolean }
+  | { kind: "line"; line: LineSegment; latest: boolean };
 
-const MAX_RESULT_CIRCLES = 100;
+const MAX_RESULT_SHAPES = 100;
 
 function circleKey(c: Circle): string {
   return `${c.cx.toFixed(9)},${c.cy.toFixed(9)},${c.r.toFixed(9)}`;
+}
+
+function lineKey(line: LineSegment): string {
+  const a = [line.x1, line.y1] as const;
+  const b = [line.x2, line.y2] as const;
+  const [first, second] =
+    a[0] < b[0] || (a[0] === b[0] && a[1] <= b[1]) ? [a, b] : [b, a];
+  return `${first[0].toFixed(9)},${first[1].toFixed(9)},${second[0].toFixed(9)},${second[1].toFixed(9)}`;
 }
 
 export function createUI(
@@ -75,41 +82,66 @@ export function createUI(
     cells.push(b);
   }
 
-  function collectResultCircles(): ResultCircle[] | null {
-    const byCircle = new Map<string, ResultCircle>();
+  function collectResultShapes(): ResultShape[] | null {
+    const byCircle = new Map<string, ResultShape>();
+    const byLine = new Map<string, ResultShape>();
+
     for (const quad of engine.violatingQuads(game.state)) {
-      const circle = circleFromQuad(quad);
-      if (!circle) continue;
-      const key = circleKey(circle);
       const latest = game.lastMove !== null && quad.includes(game.lastMove);
-      const seen = byCircle.get(key);
-      if (seen) {
-        if (latest) seen.latest = true;
+      const circle = circleFromQuad(quad);
+
+      if (circle) {
+        const key = circleKey(circle);
+        const seen = byCircle.get(key);
+        if (seen) {
+          if (latest) seen.latest = true;
+        } else {
+          byCircle.set(key, { kind: "circle", circle, latest });
+        }
       } else {
-        byCircle.set(key, { circle, latest });
-        if (byCircle.size >= MAX_RESULT_CIRCLES) return null;
+        const line = lineFromQuad(quad);
+        if (!line) continue;
+        const key = lineKey(line);
+        const seen = byLine.get(key);
+        if (seen) {
+          if (latest) seen.latest = true;
+        } else {
+          byLine.set(key, { kind: "line", line, latest });
+        }
       }
+
+      if (byCircle.size + byLine.size >= MAX_RESULT_SHAPES) return null;
     }
-    return [...byCircle.values()];
+
+    return [...byCircle.values(), ...byLine.values()];
   }
 
-  function paintCircles(): void {
+  function paintResults(): void {
     const layer = refs.circleLayer;
     while (layer.firstChild) layer.removeChild(layer.firstChild);
     if (!resultOn()) return;
 
-    const draw = (c: Circle, faint: boolean) => {
-      const el = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      el.setAttribute("cx", String(c.cx));
-      el.setAttribute("cy", String(c.cy));
-      el.setAttribute("r", String(c.r));
-      if (faint) el.setAttribute("class", "faint");
-      layer.appendChild(el);
-    };
+    const shapes = collectResultShapes();
+    if (shapes === null) return;
 
-    const circles = collectResultCircles();
-    if (circles === null) return;
-    for (const item of circles) draw(item.circle, !item.latest);
+    for (const item of shapes) {
+      if (item.kind === "circle") {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        el.setAttribute("cx", String(item.circle.cx));
+        el.setAttribute("cy", String(item.circle.cy));
+        el.setAttribute("r", String(item.circle.r));
+        if (!item.latest) el.setAttribute("class", "faint");
+        layer.appendChild(el);
+      } else {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        el.setAttribute("x1", String(item.line.x1));
+        el.setAttribute("y1", String(item.line.y1));
+        el.setAttribute("x2", String(item.line.x2));
+        el.setAttribute("y2", String(item.line.y2));
+        if (!item.latest) el.setAttribute("class", "faint");
+        layer.appendChild(el);
+      }
+    }
   }
 
   function render(): void {
@@ -181,7 +213,7 @@ export function createUI(
         : last.shard.toString(16).padStart(2, "0");
     refs.dFetch.textContent = `${store.fetches} shards / ${store.bytesFetched} B`;
 
-    paintCircles();
+    paintResults();
   }
 
   refs.undoBtn.addEventListener("click", () => game.undo());

@@ -383,8 +383,8 @@ h1 {
   overflow: visible;
 }
 
-.circle-layer circle {
-  fill: none;
+.circle-layer circle,
+.circle-layer line {
   stroke: var(--circle);
   stroke-width: 0.045;
   stroke-linecap: round;
@@ -392,7 +392,12 @@ h1 {
   filter: drop-shadow(0 0 0.5px rgba(255, 255, 255, 0.4));
 }
 
-.circle-layer circle.faint {
+.circle-layer circle {
+  fill: none;
+}
+
+.circle-layer circle.faint,
+.circle-layer line.faint {
   opacity: 0.35;
   stroke-width: 0.03;
 }

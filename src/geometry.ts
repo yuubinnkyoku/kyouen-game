@@ -5,6 +5,13 @@ export interface Circle {
   r: number;
 }
 
+export interface LineSegment {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
 export function cellCenter(p: number, size = 9): { x: number; y: number } {
   const x = p % size;
   const y = Math.floor(p / size);
@@ -34,6 +41,42 @@ export function circleFromQuad(quad: number[]): Circle | null {
   if (quad.length < 3) return null;
   const [p0, p1, p2] = quad as [number, number, number];
   return circumcircle(cellCenter(p0), cellCenter(p1), cellCenter(p2));
+}
+
+export function lineThroughBoard(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  size = 9,
+): LineSegment | null {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) return null;
+
+  let tMin = -Infinity;
+  let tMax = Infinity;
+  const clipAxis = (origin: number, delta: number): boolean => {
+    if (Math.abs(delta) < 1e-9) return origin >= 0 && origin <= size;
+    let t1 = (0 - origin) / delta;
+    let t2 = (size - origin) / delta;
+    if (t1 > t2) [t1, t2] = [t2, t1];
+    tMin = Math.max(tMin, t1);
+    tMax = Math.min(tMax, t2);
+    return tMin <= tMax;
+  };
+
+  if (!clipAxis(a.x, dx) || !clipAxis(a.y, dy)) return null;
+  return {
+    x1: a.x + tMin * dx,
+    y1: a.y + tMin * dy,
+    x2: a.x + tMax * dx,
+    y2: a.y + tMax * dy,
+  };
+}
+
+export function lineFromQuad(quad: number[], size = 9): LineSegment | null {
+  if (quad.length < 2) return null;
+  const [p0, p1] = quad as [number, number];
+  return lineThroughBoard(cellCenter(p0, size), cellCenter(p1, size), size);
 }
 
 export function coordName(p: number): string {
