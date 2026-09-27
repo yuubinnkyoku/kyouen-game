@@ -194,7 +194,10 @@ h1 {
   grid-template-columns: var(--coord) var(--board-size) var(--coord);
   grid-template-rows: var(--coord) var(--board-size) var(--coord);
   width: calc(var(--board-size) + var(--coord) * 2);
-  margin: 8px auto 0;
+  margin: 8px 0 0;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
   justify-content: center;
 }
 
