@@ -550,6 +550,30 @@ body:has(#board.hint-on) .chip-hint-only {
   color: var(--ink);
 }
 
+.quiet-links {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--ink-soft) 55%, transparent);
+}
+
+.quiet-links a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.quiet-links a:hover,
+.quiet-links a:focus-visible {
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.quiet-links span {
+  margin: 0 5px;
+}
+
 @media (max-width: 420px) {
   #app { padding: 14px 10px 48px; }
   h1 { font-size: 24px; }
