@@ -100,9 +100,8 @@
           9×9では先手が中央に置けば後手必勝手がなくなること、10×10では全初手について後手必勝となることまで計算しています。
         </p>
         <p>
-          9×9については完全解析から証明済み必勝戦略を生成し、このWeb版CPUはその
-          <span class="mono">canonical state → witness</span> の戦略表を参照しています。
-          CPUは先手で、初手は中央です。
+          9×9については全局面を解析し、「この局面では次にどこへ置けば勝てるか」をあらかじめ記録しています。
+          このWeb版CPUは、対局中にその記録を参照して次の手を選びます。CPUは先手で、初手は中央です。
         </p>
         <p>
           この結果はGPCC 2026にも解答として提出し、掲載されています。研究過程や検証用コード、Webゲーム本体も公開しています。
@@ -115,10 +114,10 @@
           <a href="https://prosym.org/gpcc/26p1.htm" target="_blank" rel="noreferrer">GPCC 2026「共円」の解答</a>
         </p>
         <dl class="tech">
-          <div><dt>strategy</dt><dd id="dStrategy">strategy-v1</dd></div>
-          <div><dt>canonical</dt><dd id="dCanon">-</dd></div>
-          <div><dt>shard</dt><dd id="dShard">-</dd></div>
-          <div><dt>fetch</dt><dd id="dFetch">0 shards / 0 B</dd></div>
+          <div><dt>戦略データ</dt><dd id="dStrategy">strategy-v1</dd></div>
+          <div><dt>局面</dt><dd id="dCanon">-</dd></div>
+          <div><dt>分割番号</dt><dd id="dShard">-</dd></div>
+          <div><dt>読み込み</dt><dd id="dFetch">0 shards / 0 B</dd></div>
         </dl>
       </details>
     </main>
