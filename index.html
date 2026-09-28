@@ -95,8 +95,24 @@
       <details class="about">
         <summary>このCPUについて</summary>
         <p>
-          その場で手を読んでいるのではなく、9×9共円ゲームの完全解析から生成した証明済み必勝戦略
-          （canonical state → witness）を参照しています。CPUは先手・初手は中央です。
+          この解析は、ChatGPTに「共円ゲームは先手有利か後手有利か」と尋ねたことをきっかけに始まりました。
+          その後、対話を通じて探索コードの生成・改良・実行・検証を進め、盤面サイズを1×1から10×10まで調査しました。
+          9×9では先手が中央に置けば後手必勝手がなくなること、10×10では全初手について後手必勝となることまで計算しています。
+        </p>
+        <p>
+          9×9については完全解析から証明済み必勝戦略を生成し、このWeb版CPUはその
+          <span class="mono">canonical state → witness</span> の戦略表を参照しています。
+          CPUは先手で、初手は中央です。
+        </p>
+        <p>
+          この結果はGPCC 2026にも解答として提出し、掲載されています。研究過程や検証用コード、Webゲーム本体も公開しています。
+        </p>
+        <p class="about-links">
+          <a href="https://github.com/yuubinnkyoku/kyouen-researches" target="_blank" rel="noreferrer">研究・解析リポジトリ</a>
+          <span aria-hidden="true">·</span>
+          <a href="https://github.com/yuubinnkyoku/kyouen-game" target="_blank" rel="noreferrer">Webゲームのソースコード</a>
+          <span aria-hidden="true">·</span>
+          <a href="https://prosym.org/gpcc/26p1.htm" target="_blank" rel="noreferrer">GPCC 2026「共円」の解答</a>
         </p>
         <dl class="tech">
           <div><dt>strategy</dt><dd id="dStrategy">strategy-v1</dd></div>
@@ -105,14 +121,6 @@
           <div><dt>fetch</dt><dd id="dFetch">0 shards / 0 B</dd></div>
         </dl>
       </details>
-
-      <footer class="quiet-links" aria-label="関連リンク">
-        <a href="https://github.com/yuubinnkyoku/kyouen-researches" target="_blank" rel="noreferrer">共円ゲームの研究</a>
-        <span aria-hidden="true">·</span>
-        <a href="https://github.com/yuubinnkyoku/kyouen-game" target="_blank" rel="noreferrer">このWebゲームのソースコード</a>
-        <span aria-hidden="true">·</span>
-        <a href="https://prosym.org/gpcc/26p1.htm" target="_blank" rel="noreferrer">GPCC 2026 共円の解答</a>
-      </footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
